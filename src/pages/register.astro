@@ -1,0 +1,89 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { env } from "cloudflare:workers";
+
+let errorMessage = '';
+let successMessage = '';
+
+if (Astro.request.method === 'POST') {
+  try {
+    const data = await Astro.request.formData();
+    const name = data.get('name')?.toString().trim();
+    const email = data.get('email')?.toString().trim().toLowerCase();
+    const password = data.get('password')?.toString();
+    const whatsapp = data.get('whatsapp')?.toString().trim();
+
+    if (!name || !email || !password || !whatsapp) {
+      errorMessage = 'All fields are required.';
+    } else {
+      const db = env.DB;
+
+      // Hash password securely
+      const msgUint8 = new TextEncoder().encode(password);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const password_hash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+      const userId = crypto.randomUUID();
+
+      // Check if this is the very first user in the database
+      const countResult = await db.prepare("SELECT COUNT(*) as total FROM users").first();
+      const role = (countResult && countResult.total === 0) ? 'admin' : 'user';
+      const isApproved = role === 'admin' ? 1 : 0; // Admin auto-approved
+
+      await db.prepare(`
+        INSERT INTO users (id, name, email, password_hash, whatsapp_number, role, is_approved)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).bind(userId, name, email, password_hash, whatsapp, role, isApproved).run();
+
+      if (role === 'admin') {
+        successMessage = 'Admin account created successfully! You can now log in.';
+      } else {
+        successMessage = 'Registration successful! Your account is pending Admin approval.';
+      }
+    }
+  } catch (err: any) {
+    if (err.message?.includes('UNIQUE constraint failed')) {
+      errorMessage = 'An account with this email already exists.';
+    } else {
+      errorMessage = 'Failed to register. Please try again.';
+      console.error(err);
+    }
+  }
+}
+---
+
+<Layout title="Register - buy.escatega">
+  <div class="max-w-md mx-auto bg-white p-6 rounded-lg shadow border border-gray-200">
+    <h1 class="text-2xl font-bold text-center mb-6 text-eg-black">Create an Account</h1>
+
+    {errorMessage && <div class="bg-red-100 text-red-700 p-3 rounded mb-4 text-sm">{errorMessage}</div>}
+    {successMessage && <div class="bg-green-100 text-green-700 p-3 rounded mb-4 text-sm">{successMessage}</div>}
+
+    <form method="POST" class="space-y-4">
+      <div>
+        <label class="block text-sm font-medium mb-1 text-eg-gray">Full Name</label>
+        <input type="text" name="name" required class="w-full border p-2 rounded focus:ring-2 focus:ring-eg-orange outline-none" placeholder="e.g. William Ortega" />
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium mb-1 text-eg-gray">Email Address</label>
+        <input type="email" name="email" required class="w-full border p-2 rounded focus:ring-2 focus:ring-eg-orange outline-none" placeholder="name@example.com" />
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium mb-1 text-eg-gray">WhatsApp Number</label>
+        <input type="text" name="whatsapp" required class="w-full border p-2 rounded focus:ring-2 focus:ring-eg-orange outline-none" placeholder="e.g. +263773674218" />
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium mb-1 text-eg-gray">Password or PIN</label>
+        <input type="password" name="password" required class="w-full border p-2 rounded focus:ring-2 focus:ring-eg-orange outline-none" placeholder="••••" />
+      </div>
+
+      <button type="submit" class="w-full bg-eg-orange hover:opacity-90 text-white font-semibold py-2 rounded transition shadow">
+        Register
+      </button>
+    </form>
+  </div>
+</Layout>

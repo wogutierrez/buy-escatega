@@ -1,0 +1,70 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { env } from "cloudflare:workers";
+
+let errorMessage = '';
+
+if (Astro.request.method === 'POST') {
+  try {
+    const data = await Astro.request.formData();
+    const email = data.get('email')?.toString().trim().toLowerCase();
+    const password = data.get('password')?.toString();
+
+    if (!email || !password) {
+      errorMessage = 'Email and password are required.';
+    } else {
+      const db = env.DB;
+
+      // Hash password to compare
+      const msgUint8 = new TextEncoder().encode(password);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const password_hash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+      const user = await db.prepare("SELECT * FROM users WHERE email = ?").bind(email).first();
+
+      if (!user || user.password_hash !== password_hash) {
+        errorMessage = 'Invalid email or password.';
+      } else if (user.is_approved === 0) {
+        errorMessage = 'Your account is pending Admin approval.';
+      } else {
+        // Set session cookie and redirect to dashboard
+        Astro.cookies.set('user_session', user.id, { 
+          path: '/', 
+          httpOnly: true, 
+          sameSite: 'lax',
+          secure: import.meta.env.PROD 
+        });
+        return Astro.redirect('/dashboard');
+      }
+    }
+  } catch (err) {
+    errorMessage = 'An error occurred during login. Please try again.';
+    console.error(err);
+  }
+}
+---
+
+<Layout title="Login - buy.escatega">
+  <div class="max-w-md mx-auto bg-white p-6 rounded-lg shadow border border-gray-200">
+    <h1 class="text-2xl font-bold text-center mb-6 text-eg-black">Log In</h1>
+
+    {errorMessage && <div class="bg-red-100 text-red-700 p-3 rounded mb-4 text-sm">{errorMessage}</div>}
+
+    <form method="POST" class="space-y-4">
+      <div>
+        <label class="block text-sm font-medium mb-1 text-eg-gray">Email Address</label>
+        <input type="email" name="email" required class="w-full border p-2 rounded focus:ring-2 focus:ring-eg-orange outline-none" placeholder="name@example.com" />
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium mb-1 text-eg-gray">Password or PIN</label>
+        <input type="password" name="password" required class="w-full border p-2 rounded focus:ring-2 focus:ring-eg-orange outline-none" placeholder="••••" />
+      </div>
+
+      <button type="submit" class="w-full bg-eg-orange hover:opacity-90 text-white font-semibold py-2 rounded transition shadow">
+        Log In
+      </button>
+    </form>
+  </div>
+</Layout>

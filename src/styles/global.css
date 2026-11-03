@@ -1,0 +1,21 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Roboto:wght@400;500&display=swap");
+@import "tailwindcss";
+
+@theme {
+  --color-eg-orange: #ff6b35;
+  --color-eg-black: #111111;
+  --color-eg-gray: #555555;
+  --color-eg-light: #f8f9fa;
+  
+  --font-sans: "Roboto", sans-serif;
+  --font-heading: "Inter", sans-serif;
+}
+
+body {
+  background-color: var(--color-eg-light);
+  color: var(--color-eg-black);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+}
