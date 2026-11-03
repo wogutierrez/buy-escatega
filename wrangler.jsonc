@@ -5,11 +5,12 @@
   "compatibility_flags": [
     "nodejs_compat"
   ],
+"pages_build_output_dir": "./dist",
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "buy-escatega-db",
-      "database_id": "local-db-id"
+      "database_id": "fbcccd57-2cac-4d21-9121-74eb7bdb29cd"
     }
   ]
 }
