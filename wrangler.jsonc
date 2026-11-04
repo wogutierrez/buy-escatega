@@ -5,8 +5,9 @@
   "compatibility_flags": [
     "nodejs_compat"
   ],
-"assets": {
-    "directory": "./dist"
+  "main": "./dist/server/entry.mjs",
+  "assets": {
+    "directory": "./dist/client"
   },
   "d1_databases": [
     {
